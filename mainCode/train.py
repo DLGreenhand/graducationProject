@@ -49,8 +49,8 @@ device = "cpu"
 model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2words").to(device)
 processor = AutoProcessor.from_pretrained("../../models/screen2words")
 processor.image_processor.is_vqa = False
-# print(model)
-# exit()
+print(model)
+exit()
 # model= nn.DataParallel(model,device_ids = [2,3,4,7])
 
 # 获取所有图片id对应的摘要list数据集（长度为5）
