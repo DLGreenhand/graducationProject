@@ -26,8 +26,8 @@ eval_set=set(eval_set)
 
 # 加载pix2struct-base预训练模型
 device = "cuda:1"
-model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2wordsl").to(device)
-processor = Pix2StructProcessor.from_pretrained("../../models/screen2wordsl")
+model = Pix2StructForConditionalGeneration.from_pretrained("../../models/s2w_base_ft_75").to(device)
+processor = Pix2StructProcessor.from_pretrained("../../models/screen2words")
 processor.image_processor.is_vqa = False
 
 # 获取所有图片id对应的摘要list数据集（长度为5）
@@ -44,8 +44,8 @@ for _, row in tqdm(screen2words.iterrows()):
     summaries = row['summary']
     if idx not in eval_set: continue
     sample_num += 1
-    url = 'image.jpg'
-    # url = f"../../dataset/rico/combined/{idx}.jpg"
+    # url = 'image.jpg'
+    url = f"../../dataset/rico/combined/{idx}.jpg"
     image = Image.open(url)
     inputs = processor(
             images=image, 
@@ -56,9 +56,9 @@ for _, row in tqdm(screen2words.iterrows()):
             ).to(device)
     prediction = model.generate(**inputs)
     caption = processor.decode(prediction[0], skip_special_tokens=True)
-    print(caption)
-    print(time.time()-start_time)
-    exit()
+    # print(caption)
+    # print(time.time()-start_time)
+    # exit()
     CIDEr += cider(summaries, caption)
 
     res.append([idx, summaries, caption])

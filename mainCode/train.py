@@ -71,7 +71,7 @@ for _, row in tqdm(screen2words.iterrows()):
     # print(summaries)
 print("dataset complete")
 start_time=time.time()
-optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
+optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
 res = []
 
 dataloader = DataLoader(mydata, num_workers=2, batch_size=2, shuffle=True)
@@ -86,7 +86,6 @@ for i in range(epoch):
             # padding="max_length", 
             # max_length=2048
         ).to(device)
-        print
         labels = processor(
             text=summary, 
             return_tensors="pt", 
@@ -95,11 +94,10 @@ for i in range(epoch):
             # max_length=2048
         ).input_ids.to(device)
         outputs = model(**inputs, labels=labels)
-        # print((outputs.last_hidden_state.shape))
-        # loss = outputs.loss
-        # loss.backward()
-        # optimizer.step()
-        
+        loss = outputs.loss
+        loss.backward()
+        optimizer.step()
+        print(loss.item())
         # predictions = model.generate(**inputs)
         # summary_dict[idx].append(processor.decode(predictions[0], skip_special_tokens=True))
         # for s in screen_summary[idx]:
