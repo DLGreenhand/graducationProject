@@ -25,46 +25,26 @@ eval_set.pop()
 eval_set=set(eval_set)
 
 # 加载pix2struct-base预训练模型
-device = "cuda:1"
-model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2wordsl").to(device)
-processor = Pix2StructProcessor.from_pretrained("../../models/screen2wordsl")
+device = "cuda:7"
+model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2words").to(device)
+processor = Pix2StructProcessor.from_pretrained("../../models/screen2words")
 processor.image_processor.is_vqa = False
 
-# 获取所有图片id对应的摘要list数据集（长度为5）
-summary_dict = dict()
-screen2words = pd.read_csv('../../dataset/screen2words/screen_summaries.csv').groupby('screenId')['summary'].agg(list).reset_index()
-
-CIDEr = 0.0
-sample_num = 0
-res = []
 start_time=time.time()
 
-for _, row in tqdm(screen2words.iterrows()):
-    idx = str(row['screenId'])
-    summaries = row['summary']
-    if idx not in eval_set: continue
-    sample_num += 1
-    url = 'image.jpg'
-    # url = f"../../dataset/rico/combined/{idx}.jpg"
-    image = Image.open(url)
-    inputs = processor(
-            images=image, 
-            return_tensors="pt",
-            font_path = './Arial.ttf',
-            # padding="max_length", 
-            # max_length=2048
-            ).to(device)
-    prediction = model.generate(**inputs)
-    caption = processor.decode(prediction[0], skip_special_tokens=True)
-    print(caption)
-    print(time.time()-start_time)
-    exit()
-    CIDEr += cider(summaries, caption)
-
-    res.append([idx, summaries, caption])
-
-df = pd.DataFrame(res,columns=['id','summaries','caption'])
-df.to_csv('test_results.csv')
-
-print(f"样本数:{sample_num},CIDEr:{CIDEr}")
-print(f"推理耗时:{time.time()-start_time}")
+url = 'image.jpg'
+# url = f"../../dataset/rico/combined/{idx}.jpg"
+image = Image.open(url)
+image = image.convert("L")
+image.save("gray.jpg")
+inputs = processor(
+        images=image, 
+        return_tensors="pt",
+        font_path = './Arial.ttf',
+        # padding="max_length", 
+        # max_length=2048
+        ).to(device)
+prediction = model.generate(**inputs)
+caption = processor.decode(prediction[0], skip_special_tokens=True)
+print(caption)
+print(time.time()-start_time)

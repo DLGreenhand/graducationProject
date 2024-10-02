@@ -1,7 +1,7 @@
 import requests,os,time
 from PIL import Image
 import torch, sys, random
-from transformers import Pix2StructVisionModel, AutoProcessor,Pix2StructForConditionalGeneration
+from transformers import Pix2StructVisionModel, Pix2StructProcessor,Pix2StructForConditionalGeneration
 import pandas as pd
 from datasets import load_dataset
 import torch.optim as optim
@@ -10,9 +10,12 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-save_path = 's2w_base_ft_longest'
-is_rand = False
-longest = True
+save_path = 'base_ft_rand_resize'
+is_rand = True
+longest = False
+resize = True
+model_path = 'base'
+device = "cuda:6"
 
 # 获得train集的所有图片id
 with open('../../dataset/screen2words/split/train_screens.txt','r') as fp:
@@ -22,9 +25,8 @@ train_set.pop()
 train_set=set(train_set)
 
 # 加载pix2struct-base预训练模型
-device = "cuda:1"
-model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2words").to(device)
-processor = AutoProcessor.from_pretrained("../../models/screen2words")
+model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
+processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
 processor.image_processor.is_vqa = False
 # print(model)
 # exit()
@@ -54,6 +56,8 @@ for i in range(epoch):
         url = f"../../dataset/rico/combined/{idx}.jpg"
         summaries = summary_dict[idx]
         image = Image.open(url)
+        if resize and image._size==(1080,1920):
+            image = image.resize((544,960))
         refs = []
         if longest:
             text = ""
@@ -92,6 +96,6 @@ for i in range(epoch):
         model.save_pretrained(f"../../models/{save_path}")
     try:
         with open(f"../../models/{save_path}/loss.txt",'a') as fp:
-            fp.write(f"epoch:{i},loss:{loss_all/len(train_set)}\n")
+            fp.write(f"epoch:{i},loss:{loss_all/len(train_set)}")
     except: print(f"fault! loss:{loss_all/len(train_set)}")        
 print(time.time()-start_time)

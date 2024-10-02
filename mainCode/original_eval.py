@@ -16,9 +16,6 @@ from torchvision import transforms
 from calCIDEr import Cider
 import numpy as np
 
-eval_model = "base_ft_rand"
-device = "cuda:7"
-
 # 获得train集的所有图片id
 with open('../../dataset/screen2words/split/test_screens.txt','r') as fp:
     s = fp.read()
@@ -27,7 +24,8 @@ eval_set.pop()
 eval_set=set(eval_set)
 
 # 加载pix2struct-base预训练模型
-model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{eval_model}").to(device)
+device = "cuda:5"
+model = Pix2StructForConditionalGeneration.from_pretrained("../../models/screen2words").to(device)
 processor = Pix2StructProcessor.from_pretrained("../../models/screen2words")
 processor.image_processor.is_vqa = False
 
@@ -47,11 +45,9 @@ for _, row in tqdm(screen2words.iterrows()):
     if idx not in eval_set: continue
     sample_num += 1
     gts_dict[idx] = summaries
-
     # url = 'image.jpg'
     url = f"../../dataset/rico/combined/{idx}.jpg"
     image = Image.open(url)
-    # image = image.resize((544,960))
     inputs = processor(
             images=image, 
             return_tensors="pt",
