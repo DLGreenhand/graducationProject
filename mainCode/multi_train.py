@@ -13,7 +13,7 @@ from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # 几个运行参数
-num_workers = 2
+num_workers = 1
 batch_size = 2
 save_path = 's2w_ft_resize'
 is_rand = True

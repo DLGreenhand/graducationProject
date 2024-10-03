@@ -16,8 +16,9 @@ from torchvision import transforms
 from calCIDEr import Cider
 import numpy as np
 
-eval_model = "base_ft_rand"
+eval_model = "s2w_ft_resize"
 device = "cuda:7"
+resize = True
 
 # 获得train集的所有图片id
 with open('../../dataset/screen2words/split/test_screens.txt','r') as fp:
@@ -51,7 +52,8 @@ for _, row in tqdm(screen2words.iterrows()):
     # url = 'image.jpg'
     url = f"../../dataset/rico/combined/{idx}.jpg"
     image = Image.open(url)
-    # image = image.resize((544,960))
+    if resize:
+        image = image.resize((544,960))
     inputs = processor(
             images=image, 
             return_tensors="pt",
