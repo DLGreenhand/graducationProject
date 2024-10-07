@@ -3,7 +3,7 @@
     生成screen对应caption, 和5个标注caption计算CIDEr指标
 """
 
-import time
+import time,json
 from PIL import Image
 from transformers import AutoProcessor, Pix2StructForConditionalGeneration, Pix2StructProcessor
 import pandas as pd
@@ -14,11 +14,15 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from calCIDEr import Cider
-import numpy as np
+from preprocess import preprocess_fn
 
-eval_model = "s2w_ft_resize"
+eval_model = "base_ft_caption"
 device = "cuda:7"
-resize = True
+fn = [
+    'resize',
+    'caption',
+    # 'gray'
+]
 
 # 获得train集的所有图片id
 with open('../../dataset/screen2words/split/test_screens.txt','r') as fp:
@@ -52,15 +56,14 @@ for _, row in tqdm(screen2words.iterrows()):
     # url = 'image.jpg'
     url = f"../../dataset/rico/combined/{idx}.jpg"
     image = Image.open(url)
-    if resize:
-        image = image.resize((544,960))
+    image = preprocess_fn(image,fn,idx)
     inputs = processor(
-            images=image, 
-            return_tensors="pt",
-            font_path = './Arial.ttf',
-            # padding="max_length", 
-            # max_length=2048
-            ).to(device)
+        images=image, 
+        return_tensors="pt",
+        font_path = './Arial.ttf',
+        # padding="max_length", 
+        # max_length=2048
+        ).to(device)
     prediction = model.generate(**inputs)
     caption = processor.decode(prediction[0], skip_special_tokens=True)
     res_dict[idx] = [caption]
