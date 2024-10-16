@@ -13,15 +13,15 @@ from torchvision import transforms
 from preprocess import preprocess_fn
 from get_data import get_s2w_data
     
-save_path = 's2w_cap_s2w_ft_2' # 保存模型路径文件夹
-rand_each = True # 每轮都随机选caption
+save_path = 's2w_cap_s2w_ft_1_res2' # 保存模型路径文件夹
+rand_each = not True # 每轮都随机选caption
 fn = [
     'resize',
     # 'caption',
     # 'gray'
 ]
-model_path = 's2w_wid_pre_func_epoch_2' # load预训练模型路径文件夹
-device = "cuda:5"
+model_path = 's2w_cap_s2w_ft_1' # load预训练模型路径文件夹
+device = "cuda:7"
 learning_rate = 1e-5
 weight_decay = 0
 
@@ -33,18 +33,16 @@ train_set = get_s2w_data("train")
 test_set = get_s2w_data("test")
 
 # 加载pix2struct-base预训练模型
-model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
-processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
-processor.image_processor.is_vqa = False
+# model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
+# processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
+# processor.image_processor.is_vqa = False
 # print(model)
 # exit()
 # model= nn.DataParallel(model,device_ids = [1,2])
 
 # 获取所有图片id对应的摘要list数据集（长度为5）
-summary_dict = dict()
 screen2words = pd.read_csv('../../dataset/screen2words/screen_summaries.csv').groupby('screenId')['summary'].agg(list).reset_index()
 start_time=time.time()
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
 epoch = 100
 # 记录5条参考文句
@@ -54,31 +52,34 @@ train_dict = {}
 if os.path.exists(f"../../models/{save_path}/loss.txt"):
     os.remove(f"../../models/{save_path}/loss.txt")
 
-for _, row in tqdm(screen2words.iterrows()):
-    idx = str(row['screenId'])
-    # if idx not in train_set and idx not in test_set: continue
-    summaries = row['summary']
-    if idx in test_set: gts_dict[idx] = summaries
-    else :train_dict[idx] = summaries
-    summary_dict[idx] = random.choice(summaries)
-  
-train_set = list(train_set)
-test_set = list(test_set)
 max_cider = 0
 from calCIDEr import Cider
 cider_cal = Cider()
 
+train_set = list(train_set)
+test_set = list(test_set)
+
 for i in range(epoch):
+    model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
+    processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
+    processor.image_processor.is_vqa = False
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+
+    summary_dict = dict()
+    for _, row in tqdm(screen2words.iterrows()):
+        idx = str(row['screenId'])
+        summaries = row['summary']
+        if idx in test_set: gts_dict[idx] = summaries
+        else :train_dict[idx] = summaries
+        summary_dict[idx] = random.choice(summaries)
+  
     loss_all = 0.0
     model.train()
     for idx in tqdm(train_set):
         url = f"../../dataset/rico/combined/{idx}.jpg"
         image = Image.open(url)
         image = preprocess_fn(image,fn,idx)
-        if rand_each:
-            summary = random.choice(train_dict[idx])
-        else :
-            summary = summary_dict[idx]
+        summary = summary_dict[idx]
         inputs = processor(
             images=image, 
             return_tensors="pt",
@@ -130,7 +131,7 @@ for i in range(epoch):
             "scores":cider[1].tolist(),
             "caption_res":res
         }
-    if max_cider < cider[0]:
+    if cider[0]<1.8 and max_cider < cider[0]:
         max_cider = cider[0]
         model.save_pretrained(f"../../models/{save_path}")
     try:
@@ -139,4 +140,8 @@ for i in range(epoch):
     except: print(f"fault! loss:{loss_all/len(train_set)}")        
     with open(f"../../models/{save_path}/{i}.json",'w') as fp:
         json.dump(record,fp)
+    
+    del model
+    torch.cuda.empty_cache()
+    
 print(time.time()-start_time)

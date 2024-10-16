@@ -13,11 +13,11 @@ from torchvision import transforms
 from preprocess import preprocess_fn
 from get_data import get_s2w_data
     
-save_path = 's2w_cap_s2w_ft_2' # 保存模型路径文件夹
+save_path = 's2w_cap_s2w_ft_2_q_cap' # 保存模型路径文件夹
 rand_each = True # 每轮都随机选caption
 fn = [
     'resize',
-    # 'caption',
+    'caption',
     # 'gray'
 ]
 model_path = 's2w_wid_pre_func_epoch_2' # load预训练模型路径文件夹
@@ -35,10 +35,9 @@ test_set = get_s2w_data("test")
 # 加载pix2struct-base预训练模型
 model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
 processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
-processor.image_processor.is_vqa = False
-# print(model)
-# exit()
-# model= nn.DataParallel(model,device_ids = [1,2])
+processor.image_processor.is_vqa = True
+text_processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
+text_processor.image_processor.is_vqa = False
 
 # 获取所有图片id对应的摘要list数据集（长度为5）
 summary_dict = dict()
@@ -81,18 +80,13 @@ for i in range(epoch):
             summary = summary_dict[idx]
         inputs = processor(
             images=image, 
+            header_text = "what function is it in the box [0, 0, 540, 960]?",
             return_tensors="pt",
-            # font_path='./Arial.ttf', 
-            # truncation=True,
-            # padding="max_length", 
-            # max_length=2048
+            font_path='./Arial.ttf', 
         ).to(device)
-        labels = processor(
+        labels = text_processor(
             text=summary, 
             return_tensors="pt", 
-            # truncation=True,
-            # padding="max_length", 
-            # max_length=2048
         ).input_ids.to(device)
         outputs = model(**inputs, labels=labels)
         loss = outputs.loss
@@ -113,11 +107,9 @@ for i in range(epoch):
             image = preprocess_fn(image,fn,idx)
             inputs = processor(
                 images=image, 
+                header_text = "what function is it in the box [0, 0, 540, 960]?",
                 return_tensors="pt",
                 font_path='./Arial.ttf', 
-                # truncation=True,
-                # padding="max_length", 
-                # max_length=2048
             ).to(device)
             prediction = model.generate(**inputs)
             caption = processor.decode(prediction[0], skip_special_tokens=True)

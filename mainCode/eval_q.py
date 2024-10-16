@@ -1,6 +1,7 @@
 """
 模型推理和验证模块：
     生成screen对应caption, 和5个标注caption计算CIDEr指标
+    vqa任务
 """
 
 import time,json
@@ -16,16 +17,16 @@ from torchvision import transforms
 from calCIDEr import Cider
 from preprocess import preprocess_fn
 
-eval_model = "s2w_ft_caption"
+eval_model = "s2w_ft_caption_112"
 device = "cuda:7"
 fn = [
     'resize',
-    # 'caption',
+    'caption',
     # 'gray'
 ]
 
 # 获得train集的所有图片id
-with open('../../dataset/screen2words/split/dev_screens.txt','r') as fp:
+with open('../../dataset/screen2words/split/test_screens.txt','r') as fp:
     s = fp.read()
     eval_set = s.split('\n')
 eval_set.pop()
@@ -34,7 +35,7 @@ eval_set=set(eval_set)
 # 加载pix2struct-base预训练模型
 model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{eval_model}").to(device)
 processor = Pix2StructProcessor.from_pretrained("../../models/screen2words")
-processor.image_processor.is_vqa = False
+processor.image_processor.is_vqa = True
 
 # 获取所有图片id对应的摘要list数据集（长度为5）
 gts_dict = dict()
@@ -60,10 +61,9 @@ for _, row in tqdm(screen2words.iterrows()):
     inputs = processor(
         images=image, 
         return_tensors="pt",
+        header_text = "what function is it in the box [0, 0, 540, 960]?",
         font_path = './Arial.ttf',
-        # padding="max_length", 
-        # max_length=2048
-        ).to(device)
+    ).to(device)
     prediction = model.generate(**inputs)
     caption = processor.decode(prediction[0], skip_special_tokens=True)
     res_dict[idx] = [caption]
