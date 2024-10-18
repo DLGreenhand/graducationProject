@@ -13,15 +13,15 @@ from torchvision import transforms
 from preprocess import preprocess_fn
 from get_data import get_s2w_data
     
-save_path = 's2w_cap_s2w_ft_1_res2' # 保存模型路径文件夹
+save_path = 's2w_cap_s2w_ft_2_q_cap_test' # 保存模型路径文件夹
 rand_each = not True # 每轮都随机选caption
 fn = [
     'resize',
-    # 'caption',
+    'caption',
     # 'gray'
 ]
-model_path = 's2w_cap_s2w_ft_1' # load预训练模型路径文件夹
-device = "cuda:7"
+model_path = 's2w_cap_s2w_ft_2_q_cap' # load预训练模型路径文件夹
+device = "cuda:5"
 learning_rate = 1e-5
 weight_decay = 0
 
@@ -62,7 +62,9 @@ test_set = list(test_set)
 for i in range(epoch):
     model = Pix2StructForConditionalGeneration.from_pretrained(f"../../models/{model_path}").to(device)
     processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
-    processor.image_processor.is_vqa = False
+    processor.image_processor.is_vqa = True
+    text_processor = Pix2StructProcessor.from_pretrained(f"../../models/screen2words")
+    text_processor.image_processor.is_vqa = False
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     summary_dict = dict()
@@ -82,13 +84,14 @@ for i in range(epoch):
         summary = summary_dict[idx]
         inputs = processor(
             images=image, 
+            header_text = "what function is it in the box [0, 0, 540, 960]?",
             return_tensors="pt",
-            # font_path='./Arial.ttf', 
+            font_path='./Arial.ttf', 
             # truncation=True,
             # padding="max_length", 
             # max_length=2048
         ).to(device)
-        labels = processor(
+        labels = text_processor(
             text=summary, 
             return_tensors="pt", 
             # truncation=True,
@@ -114,6 +117,7 @@ for i in range(epoch):
             image = preprocess_fn(image,fn,idx)
             inputs = processor(
                 images=image, 
+                header_text = "what function is it in the box [0, 0, 540, 960]?",
                 return_tensors="pt",
                 font_path='./Arial.ttf', 
                 # truncation=True,
@@ -131,7 +135,7 @@ for i in range(epoch):
             "scores":cider[1].tolist(),
             "caption_res":res
         }
-    if cider[0]<1.8 and max_cider < cider[0]:
+    if max_cider < cider[0]:
         max_cider = cider[0]
         model.save_pretrained(f"../../models/{save_path}")
     try:
